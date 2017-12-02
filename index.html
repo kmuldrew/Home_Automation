@@ -1,0 +1,65 @@
+{% extends "header.html" %}
+
+
+
+{% block body %}
+
+	<script  src="/static/statusbar2.js">
+	</script>
+
+		<h3>{{ title }}</h3>
+
+		{% for p in para %}
+		<p>{{ p }}</p>
+		{% endfor %}
+
+		{% if pageType == 'mainpage' %}
+		  <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+		  <script>
+		    var houseT = {{ houseT|safe }}
+		    var garageT = {{ garageT|safe }}
+		    var outdoorT = {{ outdoorT|safe }}
+		    var humid = {{ humid|safe }}
+		    var press = {{ press|safe }}
+		    var Ptrend = {{ Ptrend|safe }}
+		    var powerkW = {{ powerkW|safe }}
+		    var powerfactor = {{ powerfactor|safe }}
+		    var dailyE = {{ dailyE|safe }}
+		  </script>
+		<style type="text/css">
+		  canvas { border: 1px solid black; }
+		</style>
+		<body bgcolor="#7f7f7f"; onload="draw(houseT,garageT,outdoorT,humid,press,Ptrend,powerkW,powerfactor,dailyE);">
+		<canvas id="tutorial" width="520" height="240">
+		</canvas>
+		</body>
+
+		{% endif %}
+		{% if pageType == 'about' %}
+			<p>This be an about page</p>
+		{% endif %}
+		{% if pageType == 'graph' %}
+		  <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+		  <script src="http://code.highcharts.com/highcharts.js"></script>
+		  <script src="/static/graph.js"></script>
+		  <h5>Data from MulHomeAutomation</h5>
+		  Current Temperature = {{ curT }} &degC
+		{% endif %}
+
+		<div id= {{ chartID|safe }} class="chart" style="height: 300px; width: 400px"></div>
+		<script>
+			var chart_id = {{ chartID|safe }}
+			var series = {{ series|safe }}
+			var title = {{ graphtitle|safe }}
+			var credits = {"text":"MulHome","href":"http://mulhome.com"}
+			var colors = ['#00A3E0', '#183A54', '#90ed7d']
+			var xAxis = {{ xAxis|safe }}
+			var yAxis = {{ yAxis|safe }}
+			var chart = {{ chart|safe }}
+		</script>
+
+{% endblock %}
+
+<!-- Begin WeatherLink Fragment -->
+<iframe title="Environment Canada Weather" width="287px" height="191px" src="//weather.gc.ca/wxlink/wxlink.html?cityCode=ab-52&amp;lang=e" allowtransparency="true" frameborder="0"></iframe>
+<!-- End WeatherLink Fragment -->
