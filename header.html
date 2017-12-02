@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>MulHome</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+</head>
+
+<header>
+  <div class="navbar-header" style="min-width:100%; margin-left:15px; margin-bottom:10px">
+
+    <!-- Single button -->
+    <div class="btn-group">
+      <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Graphs <span class="glyphicon glyphicon-stats"></span>
+      </button>
+      <ul class="dropdown-menu">
+        <li><a href="/graph">House Tempertures</a></li>
+        <li><a href="/graph2">Outdoor/Garage Temperature</a></li>
+        <li><a href="/graph3">Humidity/Pressure</a></li>
+        <li role="separator" class="divider"></li>
+        <li><a href="/graph4">Power Use</a></li>
+        <li><a href="/graph5">Energy Use</a></li>
+        <li role="separator" class="divider"></li>
+        <li><a href="/">Dashboard</a></li>
+      </ul>
+    </div>
+
+  </div>
+</header>
+
+<body>
+
+	<div class="border-row" style="width:100%; margin-bottom: 15px;"></div>
+	<div class="container-fluid" style="width:100%; min-height:100%; margin-left: 15px;">
+	 
+	  {% block body %} {% endblock %}
+	 
+	</div>
+
+	<script type="text/javascript" src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+</body>
+
+</html>	  
+	

@@ -1,0 +1,38 @@
+{% extends "header.html" %}
+
+
+
+{% block body %}
+
+		<h3>{{ title }}</h3>
+
+		{% for p in para %}
+		<p>{{ p }}</p>
+		{% endfor %}
+
+		{% if pageType == 'about' %}
+			<p>This be an about page</p>
+		{% endif %}
+		{% if pageType == 'graph4' %}
+		  <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+		  <script src="http://code.highcharts.com/highcharts.js"></script>
+		  <script src="/static/graph4.js"></script>
+		  <h5>Data from MulHomeAutomation</h5>
+		  Current Power Use = {{ curPower }} kW <br>
+		  Power cost (past 12h) = ${{ '%0.2f'| format(curCost|float) }} <br>
+		  Power factor = {{ '%0.2f'| format(curPfactor|float) }}
+		{% endif %}
+
+		<div id={{ chartID|safe }} class="chart" style="height: 300px; width: 800px"></div>
+		<script>
+			var chart_id = {{ chartID|safe }}
+			var series = {{ series|safe }}
+			var title = {{ graphtitle|safe }}
+			var credits = {"text":"MulHome","href":"http://mulhome.com"}
+			var colors = ['#00A3E0', '#183A54', '#90ed7d']
+			var xAxis = {{ xAxis|safe }}
+			var yAxis = {{ yAxis|safe }}
+			var chart = {{ chart|safe }}
+		</script>
+
+{% endblock %}
