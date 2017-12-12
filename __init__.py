@@ -7,26 +7,31 @@ import numbers
 client = DataFrameClient('localhost',8086,'','','MulHomeAutomation')
 
 def fetchData(d_index):
+	dom = str(datetime.today().day)
 	if d_index == 0:
-		result = client.query("select * from temperature where location='basement' and time > now() - 12h limit 200")
+		result = client.query("select * from temperature where location='basement' and time > now() - 12h limit 300")
 	elif d_index == 1:
-		result = client.query("select * from temperature where location='mainfloor' and time > now() - 12h limit 200")
+		result = client.query("select * from temperature where location='mainfloor' and time > now() - 12h limit 300")
 	elif d_index == 2:
-		result = client.query("select * from temperature where location='kenroom' and time > now() - 12h limit 200")
+		result = client.query("select * from temperature where location='kenroom' and time > now() - 12h limit 300")
 	elif d_index == 3:
-		result = client.query("select * from temperature where location='garage' and time > now() - 12h limit 200")
+		result = client.query("select * from temperature where location='garage' and time > now() - 12h limit 300")
 	elif d_index == 4:
-		result = client.query("select * from temperature where location='outdoor' and time > now() - 12h limit 200")
+		result = client.query("select * from temperature where location='outdoor' and time > now() - 12h limit 300")
 	elif d_index == 5:
-		result = client.query("select * from humidity where location='basement' and time > now() - 12h limit 200")
+		result = client.query("select * from humidity where location='basement' and time > now() - 12h limit 300")
 	elif d_index == 6:
-		result = client.query("select * from pressure where location='basement' and time > now() - 12h limit 200")
+		result = client.query("select * from pressure where location='basement' and time > now() - 12h limit 400")
 	elif d_index == 7:
 		result = client.query("select * from power where location='house' and time > now() - 12h limit 4500")
 	elif d_index == 8:
 		result = client.query("select * from power where location='house' and time > now() - 12h limit 4500")
-	else: #d_index == 9:
+	elif d_index == 9:
 		result = client.query("select * from energy where location='house' and time > now() - 24h limit 50")
+	elif d_index == 10:
+		result = client.query("select * from energy where location='house' and time > now() - 7d limit 500")
+	else: #d_index == 11:
+		result = client.query("select * from energy where location='house' and time > now() - "+dom+"d limit 1500")
 	if d_index == 5:
 		db = result['humidity']
 	elif d_index == 6:
@@ -36,6 +41,10 @@ def fetchData(d_index):
 	elif d_index == 8:
 		db = result['power']
 	elif d_index == 9:
+		db = result['energy']
+	elif d_index == 10:
+		db = result['energy']
+	elif d_index == 11:
 		db = result['energy']
 	else: 
 		db = result['temperature']
@@ -52,6 +61,10 @@ def fetchData(d_index):
 		if (d_index <= 7):
 			dataPoint.append(y1[i])
 		if (d_index == 9):
+			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
+		if (d_index == 10):
+			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
+		if (d_index == 11):
 			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
 		else: #d_index == 8
 			if (i > 0):
@@ -161,7 +174,36 @@ def homepage():
 		for i in range(0,len(dataSet)):
 			dailyE += dataSet[i][1] # add up energy use for past 24h
 
-        	return render_template("index.html",houseT=houseT, garageT=garageT, outdoorT=outdoorT, humid=humid, press=press, Ptrend=Ptrend, powerkW=powerkW, powerfactor=powerfactor, dailyE=dailyE, pageType=pageType, title=title, para=para)
+		dataSet = fetchData(10) #energy
+		weeklyE = 0
+		for i in range(0,len(dataSet)):
+			weeklyE += dataSet[i][1] # add up energy use for past 7d
+
+		dataSet = fetchData(11) #energy
+		monthlyE = 0
+		for i in range(0,len(dataSet)):
+			monthlyE += dataSet[i][1] # add up energy use for past month
+		from weather import weather_day
+		from weather import forecast_day
+		w_data = weather_day()
+		cur_cond = []
+		cur_cond.append(w_data[0])
+		cur_T = float(w_data[1])
+		cur_data = []
+		if w_data[-1] == -500:
+			ind = [2,3,5,6,7,8,9,15,16,19,20,23,24,27,28,1] 
+		else:
+			ind = [3,4,6,7,8,9,10,16,17,20,21,24,25,28,29,2]
+		for i in ind:
+			cur_data.append(int(float(w_data[i])))
+		day_data = forecast_day()
+		hour = int(day_data[0][0].text.split(':')[0])
+		Tempdata = []
+		for i in range(0,24):
+			T = int(day_data[1][i].text)
+			Tempdata.append(T)
+
+        	return render_template("index.html",houseT=houseT, garageT=garageT, outdoorT=outdoorT, humid=humid, press=press, Ptrend=Ptrend, powerkW=powerkW, powerfactor=powerfactor, dailyE=dailyE, weeklyE=weeklyE, monthlyE=monthlyE, hour=hour, Tempdata=Tempdata, cur_T=cur_T, cur_data=cur_data, cur_cond=cur_cond, pageType=pageType, title=title, para=para)
 	except Exception, e:
 		return str(e)
 
