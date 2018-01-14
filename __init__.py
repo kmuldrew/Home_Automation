@@ -1,5 +1,6 @@
 from flask import Flask, render_template, url_for
 import pandas as pd
+import numpy as np
 from influxdb import DataFrameClient
 from datetime import datetime
 import time
@@ -11,11 +12,11 @@ def fetchData(d_index):
 	if d_index == 0:
 		result = client.query("select * from temperature where location='basement' and time > now() - 12h limit 300")
 	elif d_index == 1:
-		result = client.query("select * from temperature where location='mainfloor' and time > now() - 12h limit 300")
+		result = client.query("select * from temperature where location='mainfloor' and time > now() - 12h limit 600")
 	elif d_index == 2:
 		result = client.query("select * from temperature where location='kenroom' and time > now() - 12h limit 300")
 	elif d_index == 3:
-		result = client.query("select * from temperature where location='garage' and time > now() - 12h limit 300")
+		result = client.query("select * from temperature where location='garage' and time > now() - 12h limit 600")
 	elif d_index == 4:
 		result = client.query("select * from temperature where location='outdoor' and time > now() - 12h limit 300")
 	elif d_index == 5:
@@ -25,7 +26,8 @@ def fetchData(d_index):
 	elif d_index == 7:
 		result = client.query("select * from power where location='house' and time > now() - 12h limit 4500")
 	elif d_index == 8:
-		result = client.query("select * from power where location='house' and time > now() - 12h limit 4500")
+		result = client.query("select * from power where location='house' and time > now() - 12h limit 4500")#.cumsum('power')
+		#result['power']['values'] = result['power']['values'].cumsum()
 	elif d_index == 9:
 		result = client.query("select * from energy where location='house' and time > now() - 24h limit 50")
 	elif d_index == 10:
@@ -39,7 +41,7 @@ def fetchData(d_index):
 	elif d_index == 7:
 		db = result['power']
 	elif d_index == 8:
-		db = result['power']
+		db = result['power']#.cumsum()
 	elif d_index == 9:
 		db = result['energy']
 	elif d_index == 10:
@@ -51,29 +53,21 @@ def fetchData(d_index):
 	db.reset_index(level=0, inplace=True)
 	db = db.rename(columns = {'index':'date'})
 	x1 = db['date']
-	y1 = db['value']
+	if d_index == 8:
+		y1 = db['value'].cumsum() #integrate power to get energy
+		y1 = y1 / 360
+	elif (d_index == 9) or (d_index == 10) or (d_index == 11):
+		y1 = db['value']
+		y1 = y1 / 2000
+	else:
+		y1 = db['value']
 	dataSet = []
-	for i in range(0,len(x1)):
-		dataPoint = []
-		t0 = time.mktime(datetime.strptime(str(x1[i])[0:19],"%Y-%m-%d %H:%M:%S").timetuple())
-		dataPoint.append(t0*1000-50400000) #*1000 for js time, -50.4mil for -12h standart time
-		#dataPoint.append(t0*1000-43200000) #*1000 for js time, -43.2mil for -12h daylight saving time
-		if (d_index <= 7):
-			dataPoint.append(y1[i])
-		if (d_index == 9):
-			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
-		if (d_index == 10):
-			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
-		if (d_index == 11):
-			dataPoint.append(y1[i]/2000)  #stored every 30 min for past hour (so / 2) in Wh (so / 1000)
-		else: #d_index == 8
-			if (i > 0):
-				delta_t = ((x1[i]-x1[i-1]).total_seconds())/3600
-				dataPoint.append(dataSet[i-1][1] + (y1[i] * delta_t))  #integrate power for d_index == 8
-			else:
-				dataPoint.append(0)
-
-		dataSet.append(dataPoint)
+	if time.localtime().tm_isdst: # if daylight saving time then
+		timePoints = pd.DatetimeIndex(x1).astype(np.int64) // 10**6 - 21600000 #convert pd.timestamp to unix time
+	else:
+		timePoints = pd.DatetimeIndex(x1).astype(np.int64) // 10**6 - 25200000 #convert pd.timestamp to unix time
+	dataSet = list(zip(timePoints,y1)) # merge into list of tuples
+	dataSet = [list(elem) for elem in dataSet] # convert tuples to lists
 	return(dataSet)
 
 def fetchT(d_index):
@@ -128,10 +122,7 @@ def fetchPtrend():
 	db.reset_index(level=0, inplace=True)
 	db = db.rename(columns = {'index':'date'})
 	y1 = db['value']
-	sumP = 0.0
-	for i in range(0,len(y1)-1):
-		sumP = sumP + y1[i]
-	avg = sumP/(len(y1)-1)
+	avg = y1.mean() # get average pressure over last hour
 	return((y1[len(y1)-1]) - avg) # current pressure - average over last hour
 
 def fetchPfactor():
@@ -147,10 +138,7 @@ def fetchPfactor():
 		db.reset_index(level=0, inplace=True)
 		db = db.rename(columns = {'index':'date'})
 		y1 = db['value']
-		sumP = 0.0
-		for i in range(0,len(y1)-1):
-			sumP = sumP + y1[i]
-		avg = sumP/(len(y1)-1)
+		avg = y1.mean() # get average power factor over last half hour
 		return(avg) # average power factor over last half hour
 
 app = Flask(__name__)
@@ -179,29 +167,64 @@ def homepage():
 		for i in range(0,len(dataSet)):
 			weeklyE += dataSet[i][1] # add up energy use for past 7d
 
-		dataSet = fetchData(11) #energy
+		dataSet = fetchData(11) #energy ***throws error 'energy' when no data
 		monthlyE = 0
 		for i in range(0,len(dataSet)):
 			monthlyE += dataSet[i][1] # add up energy use for past month
-		from weather import weather_day
-		from weather import forecast_day
-		w_data = weather_day()
-		cur_cond = []
-		cur_cond.append(w_data[0])
-		cur_T = float(w_data[1])
-		cur_data = []
-		if w_data[-1] == -500:
-			ind = [2,3,5,6,7,8,9,15,16,19,20,23,24,27,28,1] 
-		else:
-			ind = [3,4,6,7,8,9,10,16,17,20,21,24,25,28,29,2]
-		for i in ind:
-			cur_data.append(int(float(w_data[i])))
-		day_data = forecast_day()
-		hour = int(day_data[0][0].text.split(':')[0])
+
+		#get scraped weather data from weather.dat
 		Tempdata = []
-		for i in range(0,24):
-			T = int(day_data[1][i].text)
-			Tempdata.append(T)
+		cur_data = []
+		cur_cond = []
+		filename = "/var/www/FlaskApp/FlaskApp/weather.dat"
+		with open(filename, "r") as infile:
+        		filedata = infile.read()
+		infile.close()
+		file_list = filedata.splitlines()
+		Tempdata_len = int(file_list[0])
+		for i in range(1,Tempdata_len+1):
+        		Tempdata.append(int(file_list[i]))
+		cur_T = float(file_list[i+1])
+		cur_data_len = int(file_list[i+2])
+		for i in range(i+3,cur_data_len+i+3):
+        		cur_data.append(int(file_list[i]))
+		cur_cond.append(file_list[-3])
+		hour = int(file_list[-2])
+		weather_timestamp = int(file_list[-1])
+		now = int(time.time())
+		if (now - weather_timestamp > 600): #if file data is old, do a new scrape
+			from weather import weather_day
+			from weather import forecast_day
+			w_data = weather_day()
+			cur_cond = []
+			cur_cond.append(w_data[0])
+			cur_T = float(w_data[1])
+			cur_data = []
+			if w_data[-1] == -500:
+				ind = [2,3,5,6,7,8,9,15,16,19,20,23,24,27,28,1] 
+			else:
+				ind = [3,4,6,7,8,9,10,16,17,20,21,24,25,28,29,2]
+			for i in ind:
+				cur_data.append(int(float(w_data[i])))
+			day_data = forecast_day()
+			hour = int(day_data[0][0].text.split(':')[0])
+			Tempdata = []
+			for i in range(0,24):
+				T = int(day_data[1][i].text)
+				Tempdata.append(T)
+			#save new weather data to file
+			file = open(filename, "w")
+			file.write("%d\n" % len(Tempdata))
+			for item in Tempdata:
+        			file.write("%d\n" % item)
+			file.write("%.1f\n" % cur_T)
+			file.write("%d\n" % len(cur_data))
+			for item in cur_data:
+        			file.write("%d\n" % item)
+			file.write(cur_cond[0]+"\n")
+			file.write("%d\n" % hour)
+			file.write("%d\n" % now)
+			file.close()
 
         	return render_template("index.html",houseT=houseT, garageT=garageT, outdoorT=outdoorT, humid=humid, press=press, Ptrend=Ptrend, powerkW=powerkW, powerfactor=powerfactor, dailyE=dailyE, weeklyE=weeklyE, monthlyE=monthlyE, hour=hour, Tempdata=Tempdata, cur_T=cur_T, cur_data=cur_data, cur_cond=cur_cond, pageType=pageType, title=title, para=para)
 	except Exception, e:
@@ -268,9 +291,10 @@ def index3(chartID = 'chart_ID', chart_type = 'line', chart_height = 350):
 def index4(chartID = 'chart_ID', chart_type = 'line', chart_height = 350):
 	pageType = 'graph4'
 	dataSet = fetchData(7) #real power
+	#dataSet1 = list(dataSet)
 	dataSet1 = fetchData(8) #power consumption
 	curPower = dataSet[len(dataSet)-1][1]
-	curCost = dataSet1[len(dataSet)-1][1] / 10000  # $0.10/kWh so divide by 1000 for kW, 100 for $, multiply by 10 cents
+	curCost = dataSet1[len(dataSet)-1][1] / 5000  # $0.20/kWh so divide by 1000 for kW, 100 for $, multiply by 20 cents
 	curPfactor = fetchPfactor()
 	chart = {"renderTo": chartID, "type": chart_type, "height": chart_height, "zoomType": 'x'}
 	series = [{"name": 'Power use', "data": dataSet},{"name": 'Energy Use', "data": dataSet1, "yAxis": 1}]
@@ -288,7 +312,7 @@ def index5(chartID = 'chart_ID', chart_type = 'column', chart_height = 350):
 	for i in range(0,len(dataSet)):
 		dailyE += dataSet[i][1]
 
-	dailyCost = dailyE / 10.0  # $0.10/kWh
+	dailyCost = dailyE / 5.0  # $0.20/kWh (approx. cost of delivered electricity in Calgary
 	chart = {"renderTo": chartID, "type": chart_type, "height": chart_height,}
 	series = [{"name": 'Energy Use', "data": dataSet}]
 	graphtitle = {"text": 'Energy Consumption (kWh)'}
