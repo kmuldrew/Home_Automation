@@ -182,44 +182,47 @@ function draw(houseT,garageT,outdoorT,humid,press,Ptrend,powerkW,powerfactor,dai
     ctx.strokeStyle = "rgb(0,0,0)";			  //put drawing color back to black
 
     // Energy
-    maxDailyE = 80;
+    maxDailyE = 60;
     var avgEhigh = avgEmaxT(m);   //get avg high energy use for this month
     current_y = y_top+y_height-((dailyE)*(y_height/maxDailyE));
-    avgmax_y = y_top+y_height-(avgEhigh*(y_height/maxDailyE));	  //
-    avgmin_y = y_top+y_height-((avgEhigh-15)*(y_height/maxDailyE));
+    avgmax_y = y_top+y_height-((avgEhigh+10)*(y_height/maxDailyE));	  //avg +/- 10kWh range
+    avgmin_y = y_top+y_height-((avgEhigh-10)*(y_height/maxDailyE));
     alrmin_y = y_top+y_height-(0*(y_height/maxDailyE));	  
-    alrmax_y = y_top+y_height-((avgEhigh+10)*(y_height/maxDailyE));
-    box(ctx,x_center+x_spacing*6.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y > alrmin_y)));
+    alrmax_y = y_top+y_height-((avgEhigh+20)*(y_height/maxDailyE));
+    box(ctx,x_center+x_spacing*6.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y < alrmax_y)));
     if (current_y > (y_top+y_height-13)) {current_y = y_top+y_height-13;}  //for low values, don't overwrite level and lower bound
     ctx.fillText(dailyE.toFixed(0),x_center+x_spacing*6.7+6+10,current_y+5);  //print value opposite pointer
     ctx.fillText(' 0',x_center+x_spacing*6.7+6+10,y_top+y_height);  //print min value at bottom right of bar
     ctx.fillText(maxDailyE,x_center+x_spacing*6.7+6+10,y_top+8);  //print max value at top right of bar
 
     // Weekly Energy
-    maxWeeklyE = 500;
+    maxWeeklyE = 350;
     avgEhigh = avgEmaxT(m)*7;   //get avg high energy use for this month
     current_y = y_top+y_height-((weeklyE)*(y_height/maxWeeklyE));
-    avgmax_y = y_top+y_height-(avgEhigh*(y_height/maxWeeklyE));	  //
-    avgmin_y = y_top+y_height-((avgEhigh-80)*(y_height/maxWeeklyE));
+    avgmax_y = y_top+y_height-((avgEhigh+40)*(y_height/maxWeeklyE));	  //avg +/- 40kWh range
+    avgmin_y = y_top+y_height-((avgEhigh-40)*(y_height/maxWeeklyE));
     alrmin_y = y_top+y_height-(0*(y_height/maxWeeklyE));	  
-    alrmax_y = y_top+y_height-((avgEhigh+50)*(y_height/maxWeeklyE));
-    box(ctx,x_center+x_spacing*7.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y > alrmin_y)));
+    alrmax_y = y_top+y_height-((avgEhigh+80)*(y_height/maxWeeklyE));
+    box(ctx,x_center+x_spacing*7.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y < alrmax_y)));
     if (current_y > (y_top+y_height-13)) {current_y = y_top+y_height-13;}  //for low values, don't overwrite level and lower bound
     ctx.fillText(weeklyE.toFixed(0),x_center+x_spacing*7.7+6+10,current_y+5);  //print value opposite pointer
     ctx.fillText(' 0',x_center+x_spacing*7.7+6+10,y_top+y_height);  //print min value at bottom right of bar
     ctx.fillText(maxWeeklyE,x_center+x_spacing*7.7+6+10,y_top+8);  //print max value at top right of bar
 
     // Monthly Energy (start of month to today)
-    maxMonthlyE = 2000;
+    maxMonthlyE = 1200;
     avgEhigh = avgEmaxT(m)*d;   //get avg high energy use for this month (energy/day * no. of days so far in month)
+    var E_range = avgEhigh / 5;     //allow 20% above average for upper range of acceptable energy usage
     current_y = y_top+y_height-((monthlyE)*(y_height/maxMonthlyE));
-    avgmax_y = y_top+y_height-(avgEhigh*(y_height/maxMonthlyE));	  //
+    avgmax_y = y_top+y_height-((avgEhigh+E_range)*(y_height/maxMonthlyE));	  //avg + 15% range
     var avgElow = avgEhigh; //early in month, make avg low smaller so that we don't go below zero
     if (avgElow > 200) {avgElow = 200;} //avg monthly low is set at avg monthly E - 200 for the month
     avgmin_y = y_top+y_height-((avgEhigh-avgElow)*(y_height/maxMonthlyE));
-    alrmin_y = y_top+y_height-(0*(y_height/maxMonthlyE));	  
-    alrmax_y = y_top+y_height-((avgEhigh+200)*(y_height/maxMonthlyE));
-    box(ctx,x_center+x_spacing*8.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y > alrmin_y)));
+    alrmin_y = y_top+y_height-(0*(y_height/maxMonthlyE));
+    E_range = E_range * 5;	//allow double energy use before alarm to max of 350kWh
+    if (E_range > 350) {E_range = 350;}	  
+    alrmax_y = y_top+y_height-((avgEhigh+(E_range))*(y_height/maxMonthlyE));
+    box(ctx,x_center+x_spacing*8.7,y_top,y_height,alrmax_y,avgmax_y,avgmin_y,alrmin_y,current_y,((current_y < alrmax_y)));
     if (current_y > (y_top+y_height-13)) {current_y = y_top+y_height-13;}  //for low values, don't overwrite level and lower bound
     ctx.fillText(monthlyE.toFixed(0),x_center+x_spacing*8.7+6+10,current_y+5);  //print value opposite pointer
     ctx.fillText(' 0',x_center+x_spacing*8.7+6+10,y_top+y_height);  //print min value at bottom right of bar
